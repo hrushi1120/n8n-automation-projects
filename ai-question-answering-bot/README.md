@@ -1,52 +1,51 @@
 # AI question answering bot
 
-An automated workflow that pulls incoming questions from a Google Sheet, answers them using Google's Gemini AI, writes the answer back to the sheet, and sends an email notification — running on a schedule with no manual steps.
+This bot watches a Google Sheet for questions that haven't been answered yet, gets Gemini to actually answer them, and writes the answer back into the sheet. No manual checking needed. It also sends me an email each time one gets answered, so I know it's actually running.
 
 ## What it does
 
-Instead of manually checking a spreadsheet for new questions and typing out replies, this workflow runs in the background, picks up unanswered rows, generates an answer using an AI agent, logs the answer back into the sheet, and emails it out automatically.
+I added about 20-25 sample questions to a sheet to test this. Every minute, the workflow checks for rows where the Answer column is still empty, sends those questions to an AI agent, and updates the sheet once it has a response. Then it emails me a quick confirmation with the question, the answer, and a timestamp.
 
 ## How it works
 
-1. **Schedule trigger** — runs the workflow automatically at a set interval.
-2. **Get row(s) in sheet** — reads rows from a Google Sheet containing around 20-25 sample questions used to test the bot.
-3. **If** — checks whether that row's answer column is still empty, meaning the question hasn't been answered yet. Only unanswered rows continue.
-4. **Limit** — caps how many rows are processed in a single run, so the bot doesn't try to answer everything at once and hit API rate limits.
-5. **AI Agent** — the core of the bot:
-   - Uses **Google Gemini** as the underlying language model
-   - Has a **Calculator** tool available, so it can handle questions that need actual math instead of guessing
-   - Generates an answer for the question in that row
-6. **Update row in sheet** (on success) — writes the AI's answer back into the spreadsheet.
-7. **Send a message** — emails a notification to my own Gmail inbox once the question has been answered, confirming the run completed.
-8. **Error path** — not yet connected; a planned improvement is to add a retry or alert here instead of letting failed answers disappear silently.
+1. A schedule trigger kicks things off automatically.
+2. It reads all the rows from the Google Sheet.
+3. An If node checks each row. If the Answer column is empty, it goes through. Already-answered rows get skipped.
+4. A Limit node caps how many rows get processed in one run, mainly so it doesn't try to answer 20 questions at once and hit API limits.
+5. From there it hits the AI Agent. This is running on Gemini, and I gave it access to a Calculator tool, so it can actually do math instead of just guessing at an answer.
+6. Once it generates a response, that gets written back into the same row in the sheet.
+7. Last step, it sends me an email confirming the run, with the question and answer included.
+
+One thing I haven't fixed yet: if the AI Agent errors out, that path isn't connected to anything. Right now a failure just disappears quietly instead of alerting me. That's the next thing I want to add.
 
 ## Tech stack
 
-- n8n — workflow orchestration and scheduling
-- Google Sheets API — reading and writing rows
-- Google Gemini API — the LLM powering the AI agent
-- Gmail API — sending the answer notification
+- n8n handles the scheduling and orchestration
+- Google Sheets API reads and writes rows
+- Gemini API powers the AI agent
+- Gmail API sends the notification
 
 ## Setup
 
-1. Import `workflow.json` into n8n.
-2. Connect your own credentials for Google Sheets, Gmail, and the Gemini API.
-3. Point the **Get row(s) in sheet** node at your own sheet ID and tab.
-4. Adjust the schedule interval and the **Limit** count to match your expected volume.
-5. Activate the workflow.
+If you want to run this yourself:
+1. Import `workflow.json` into your own n8n instance.
+2. Connect your own Google Sheets, Gmail, and Gemini credentials.
+3. Point the sheet nodes at your own spreadsheet ID.
+4. Adjust the schedule interval and the Limit count to whatever makes sense for your use case.
+5. Turn the workflow on.
 
-## Possible improvements
+## What's not done yet
 
-- Wire up the **Error** output of the AI Agent with a retry or an alert email, instead of leaving failed runs unhandled.
-- Add **Memory** to the AI Agent so it can reference earlier questions/answers for context.
-- Add more tools beyond the calculator (e.g. a web search tool) for questions that need outside information.
+- No error handling if the AI Agent fails
+- No memory, so it can't reference earlier questions for context
+- Only has the Calculator tool, nothing for looking things up outside the sheet
 
-## A note on workflow.json
+## About workflow.json
 
-This file is exported directly from n8n — it's the saved definition of every node and connection, not hand-written application code. The actual engineering work here was designing the workflow itself: choosing the trigger, the conditional logic that decides which rows to process, the prompt sent to the AI agent, and which tool it has access to.
+This is just what n8n exports when you save a workflow. It's not code I typed out line by line. The actual work was building this visually in n8n: picking the trigger, setting up the If/Limit logic, writing the prompt the AI agent uses, and deciding which tool it gets access to.
 
 ## Files in this folder
 
-- `workflow.json` — the exported n8n workflow
-- `screenshot.png` — the workflow canvas, for a quick visual overview
-- `README.md` — this file
+- `workflow.json`: the exported workflow
+- `screenshot.png`: the workflow in n8n, including a successful run
+- `README.md`: this file
